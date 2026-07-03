@@ -10,6 +10,10 @@ public class DroneMovement : MonoBehaviour
     [SerializeField] private float tiltSpeed = 5f;
     [SerializeField] private float drag = 3f; // Simulazione dell'attrito dell'aria per frenare il drone
 
+    [Header("Visuals")]
+    [Tooltip("Assegna qui il GameObject figlio che contiene il modello 3D del drone")]
+    [SerializeField] private Transform droneVisualModel;
+
     private Rigidbody rb;
     private Vector2 currentMoveInput;
     private float currentAltitudeInput;
@@ -22,8 +26,8 @@ public class DroneMovement : MonoBehaviour
         
         // Ottimizzazioni fisiche per il drone
         rb.useGravity = true; 
-        rb.drag = drag;
-        rb.angularDrag = drag;
+        rb.linearDamping = drag;
+        rb.angularDamping = drag;
         rb.interpolation = RigidbodyInterpolation.Interpolate; // Movimento fluido per la camera
     }
 
@@ -35,6 +39,10 @@ public class DroneMovement : MonoBehaviour
 
         HandleHovering();
         HandleMovement();
+    }
+
+    private void Update()
+    {
         HandleTilt();
     }
 
@@ -77,14 +85,24 @@ public class DroneMovement : MonoBehaviour
 
     private void HandleTilt()
     {
-        // Effetto visivo/fisico: il drone si inclina nella direzione in cui si muove
-        float targetPitch = currentMoveInput.y * maxTiltAngle;
-        float targetRoll = -currentMoveInput.x * maxTiltAngle;
+        // Se non è stato assegnato alcun modello visivo, evitiamo errori
+        if (droneVisualModel == null) return;
 
-        // Manteniamo lo yaw (rotazione Y) attuale intatto per ora
-        Quaternion targetRotation = Quaternion.Euler(targetPitch, transform.eulerAngles.y, targetRoll);
+        float targetPitch = 0f;
+        float targetRoll = 0f;
+
+        if (areMotorsActive)
+        {
+            // Effetto visivo: il modello 3D si inclina nella direzione in cui si muove
+            targetPitch = currentMoveInput.y * maxTiltAngle;
+            targetRoll = -currentMoveInput.x * maxTiltAngle;
+        }
+
+        // Fissiamo lo yaw a 0 (il root gestirà la rotazione Y), per evitare gimbal lock e mantenere coerenza fisica
+        Quaternion targetRotation = Quaternion.Euler(targetPitch, 0f, targetRoll);
         
-        // Usiamo Slerp per una rotazione morbida e ottimizzata
-        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * tiltSpeed);
+        // Usiamo Slerp per una rotazione morbida e ottimizzata solo sul modello figlio.
+        // Usiamo Time.deltaTime in quanto chiamato in Update (Render visivo).
+        droneVisualModel.localRotation = Quaternion.Slerp(droneVisualModel.localRotation, targetRotation, Time.deltaTime * tiltSpeed);
     }
 }
