@@ -21,6 +21,7 @@ public class DroneMovement : MonoBehaviour
 
     private Rigidbody rb;
     private BatterySystem batterySystem;
+    private DroneHealth droneHealth;
     private Vector2 currentMoveInput;
     private float currentAltitudeInput;
     
@@ -32,10 +33,23 @@ public class DroneMovement : MonoBehaviour
 
     private void Awake()
     {
+        // Aggiunge automaticamente i componenti fisici necessari se non presenti
+        if (GetComponent<DroneHealth>() == null)
+        {
+            gameObject.AddComponent<DroneHealth>();
+            Debug.Log("DroneMovement: Componente DroneHealth mancante sul drone. Aggiunto automaticamente.");
+        }
+        if (GetComponent<WindReceiver>() == null)
+        {
+            gameObject.AddComponent<WindReceiver>();
+            Debug.Log("DroneMovement: Componente WindReceiver mancante sul drone. Aggiunto automaticamente.");
+        }
+
         rb = GetComponent<Rigidbody>();
         batterySystem = GetComponent<BatterySystem>();
+        droneHealth = GetComponent<DroneHealth>();
         
-        VirtualJoystick[] joysticks = UnityEngine.Object.FindObjectsByType<VirtualJoystick>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        VirtualJoystick[] joysticks = UnityEngine.Object.FindObjectsByType<VirtualJoystick>(FindObjectsInactive.Exclude);
         foreach (var j in joysticks)
         {
             if (j.name.Contains("Left")) leftJoystick = j;
@@ -52,7 +66,7 @@ public class DroneMovement : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (batterySystem != null && batterySystem.IsDepleted)
+        if ((batterySystem != null && batterySystem.IsDepleted) || (droneHealth != null && droneHealth.IsDead))
         {
             AreMotorsOn = false;
         }
@@ -103,6 +117,12 @@ public class DroneMovement : MonoBehaviour
 
     public void ToggleMotors()
     {
+        if (droneHealth != null && droneHealth.IsDead)
+        {
+            AreMotorsOn = false;
+            return;
+        }
+
         if (batterySystem != null && batterySystem.IsDepleted)
         {
             AreMotorsOn = false;
@@ -128,6 +148,12 @@ public class DroneMovement : MonoBehaviour
     /// </summary>
     public void SetMotorsState(bool state)
     {
+        if (droneHealth != null && droneHealth.IsDead && state == true)
+        {
+            AreMotorsOn = false;
+            return;
+        }
+
         if (batterySystem != null && batterySystem.IsDepleted && state == true)
         {
             AreMotorsOn = false;

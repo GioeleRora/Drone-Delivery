@@ -10,9 +10,9 @@ public class UIAutoBuilder : EditorWindow
     public static void GenerateUI()
     {
         // 1. Pulizia Vecchia UI
-        Canvas[] existingCanvases = Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+        Canvas[] existingCanvases = Object.FindObjectsByType<Canvas>(FindObjectsInactive.Exclude);
         foreach (var c in existingCanvases) { DestroyImmediate(c.gameObject); }
-        EventSystem[] existingEventSystems = Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None);
+        EventSystem[] existingEventSystems = Object.FindObjectsByType<EventSystem>(FindObjectsInactive.Exclude);
         foreach (var ev in existingEventSystems) { DestroyImmediate(ev.gameObject); }
 
         // 2. Creazione Canvas Base
@@ -28,7 +28,7 @@ public class UIAutoBuilder : EditorWindow
         eventSystemGo.AddComponent<EventSystem>();
         eventSystemGo.AddComponent<StandaloneInputModule>();
 
-        DroneMovement drone = Object.FindFirstObjectByType<DroneMovement>(FindObjectsInactive.Include);
+        DroneMovement drone = Object.FindAnyObjectByType<DroneMovement>(FindObjectsInactive.Include);
         
         if (drone != null)
         {
@@ -189,7 +189,7 @@ public class UIAutoBuilder : EditorWindow
         tapeText.fontSize = 24;
         tapeText.color = Color.white;
         tapeText.alignment = TextAlignmentOptions.Center;
-        tapeText.enableWordWrapping = false;
+        tapeText.textWrappingMode = TextWrappingModes.NoWrap;
         RectTransform tapeRect = tapeText.rectTransform;
         tapeRect.anchorMin = new Vector2(0.5f, 0.5f);
         tapeRect.anchorMax = new Vector2(0.5f, 0.5f);

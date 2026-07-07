@@ -9,3 +9,5 @@ Assets\Scripts\UI\AnimatedToggle.cs
 Assets\Scripts\UI\CompassHUD.cs
 Assets\Scripts\UI\UIManager.cs
 Assets\Scripts\UI\VirtualJoystick.cs
+Assets\Scripts\Core\DeliveryManager.cs
+Assets\Scripts\UI\TargetIndicatorHUD.cs

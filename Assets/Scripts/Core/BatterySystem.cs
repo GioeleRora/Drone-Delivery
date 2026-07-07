@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 
 public class BatterySystem : MonoBehaviour
 {
@@ -17,6 +18,9 @@ public class BatterySystem : MonoBehaviour
     // Proprietà calcolata per sapere se è scarica
     public bool IsDepleted => CurrentBattery <= 0f;
 
+    public event Action OnBatteryDepleted;
+    private bool hasTriggeredDepletion = false;
+
     private void Awake()
     {
         CurrentBattery = maxBattery;
@@ -29,6 +33,12 @@ public class BatterySystem : MonoBehaviour
         {
             // Usiamo Mathf.Max per evitare che il valore scenda in negativo
             CurrentBattery = Mathf.Max(0f, CurrentBattery - drainRate * DrainMultiplier * Time.deltaTime);
+
+            if (IsDepleted && !hasTriggeredDepletion)
+            {
+                hasTriggeredDepletion = true;
+                OnBatteryDepleted?.Invoke();
+            }
         }
     }
 }
