@@ -1,0 +1,11 @@
+Assets\Scripts\Core\AltitudeManager.cs
+Assets\Scripts\Core\BatterySystem.cs
+Assets\Scripts\Core\CameraFollow.cs
+Assets\Scripts\Core\DroneMovement.cs
+Assets\Scripts\Core\ProceduralMapBuilder.cs
+Assets\Scripts\Environment\WindArea.cs
+Assets\Scripts\Input\DroneInputHandler.cs
+Assets\Scripts\UI\AnimatedToggle.cs
+Assets\Scripts\UI\CompassHUD.cs
+Assets\Scripts\UI\UIManager.cs
+Assets\Scripts\UI\VirtualJoystick.cs
