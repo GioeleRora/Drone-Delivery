@@ -1,15 +1,18 @@
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 [RequireComponent(typeof(Rigidbody))]
 public class DroneMovement : MonoBehaviour
 {
     [Header("Input Settings")]
-    [SerializeField] private bool useKeyboardInput = true;
+    [Tooltip("PC Inputs: WASD (Pitch/Roll), Space/Shift (Throttle), Arrows (Yaw)")]
+    // Virtual Joysticks removed for PC transition
 
     [Header("Movement Settings")]
     [SerializeField] private float moveForce = 20f;
     [SerializeField] private float ascendForce = 15f;
-    [SerializeField] private float maxAltitude = 20f;
     [SerializeField] private float maxTiltAngle = 25f;
     [SerializeField] private float tiltSpeed = 5f;
     [SerializeField] private float drag = 3f; // Simulazione dell'attrito dell'aria per frenare il drone
@@ -24,9 +27,7 @@ public class DroneMovement : MonoBehaviour
     private DroneHealth droneHealth;
     private Vector2 currentMoveInput;
     private float currentAltitudeInput;
-    
-    private VirtualJoystick leftJoystick;
-    private VirtualJoystick rightJoystick;
+    private float currentYawInput;
     
     public bool AreMotorsOn { get; private set; } = false;
     public bool IsGrounded { get; private set; }
@@ -48,13 +49,6 @@ public class DroneMovement : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         batterySystem = GetComponent<BatterySystem>();
         droneHealth = GetComponent<DroneHealth>();
-        
-        VirtualJoystick[] joysticks = UnityEngine.Object.FindObjectsByType<VirtualJoystick>(FindObjectsInactive.Exclude);
-        foreach (var j in joysticks)
-        {
-            if (j.name.Contains("Left")) leftJoystick = j;
-            if (j.name.Contains("Right")) rightJoystick = j;
-        }
         
         rb.useGravity = true; 
         rb.linearDamping = drag;
@@ -93,23 +87,62 @@ public class DroneMovement : MonoBehaviour
 
         HandleHovering();
         HandleMovement();
+
+        // Rotazione fluida (Imbardata) gestita dalla fisica per evitare stuttering
+        Quaternion deltaRotation = Quaternion.Euler(0, currentYawInput * yawSpeed * Time.fixedDeltaTime, 0);
+        rb.MoveRotation(rb.rotation * deltaRotation);
     }
 
     private void Update()
     {
         if (AreMotorsOn)
         {
-            float pitchInput = useKeyboardInput ? (Input.GetKey(KeyCode.W) ? 1f : (Input.GetKey(KeyCode.S) ? -1f : 0f)) : rightJoystick.InputVector.y;
-            float rollInput = useKeyboardInput ? (Input.GetKey(KeyCode.D) ? 1f : (Input.GetKey(KeyCode.A) ? -1f : 0f)) : leftJoystick.InputVector.x;
-            float throttleInput = useKeyboardInput ? (Input.GetKey(KeyCode.Space) ? 1f : (Input.GetKey(KeyCode.LeftShift) ? -1f : 0f)) : leftJoystick.InputVector.y;
-            float yawInput = useKeyboardInput ? (Input.GetKey(KeyCode.RightArrow) ? 1f : (Input.GetKey(KeyCode.LeftArrow) ? -1f : 0f)) : rightJoystick.InputVector.x;
+            // Controllo Freelook
+            bool isFreelook = Input.GetKey(KeyCode.LeftAlt);
+#if ENABLE_INPUT_SYSTEM
+            Gamepad gamepad = Gamepad.current;
+            if (gamepad != null && gamepad.leftShoulder.isPressed) isFreelook = true;
+#endif
 
-            SetInput(new Vector2(rollInput, pitchInput), throttleInput);
-            transform.Rotate(0, yawInput * yawSpeed * Time.deltaTime, 0);
+            // PC Controls - Mode 2 Drone Standard
+            float pitchInput = 0f;
+            float rollInput = 0f;
+            
+            // Disabilitiamo il beccheggio e rollio se stiamo guardando in giro
+            if (!isFreelook)
+            {
+                pitchInput = Input.GetKey(KeyCode.UpArrow) ? 1f : (Input.GetKey(KeyCode.DownArrow) ? -1f : 0f);
+                rollInput = Input.GetKey(KeyCode.RightArrow) ? 1f : (Input.GetKey(KeyCode.LeftArrow) ? -1f : 0f);
+            }
+            
+            float throttleInput = Input.GetKey(KeyCode.W) ? 1f : (Input.GetKey(KeyCode.S) ? -1f : 0f);
+            float yawInput = Input.GetKey(KeyCode.D) ? 1f : (Input.GetKey(KeyCode.A) ? -1f : 0f);
+
+#if ENABLE_INPUT_SYSTEM
+            if (gamepad != null)
+            {
+                // Mode 2 Standard:
+                // Left Stick: Throttle (Y) / Yaw (X)
+                // Right Stick: Pitch (Y) / Roll (X) (Solo se Freelook non è attivo)
+                Vector2 leftStick = gamepad.leftStick.ReadValue();
+                Vector2 rightStick = gamepad.rightStick.ReadValue();
+                
+                if (Mathf.Abs(leftStick.y) > 0.1f) throttleInput = leftStick.y;
+                if (Mathf.Abs(leftStick.x) > 0.1f) yawInput = leftStick.x;
+                
+                if (!isFreelook)
+                {
+                    if (Mathf.Abs(rightStick.y) > 0.1f) pitchInput = rightStick.y;
+                    if (Mathf.Abs(rightStick.x) > 0.1f) rollInput = rightStick.x;
+                }
+            }
+#endif
+
+            SetInput(new Vector2(rollInput, pitchInput), throttleInput, yawInput);
         }
         else
         {
-            SetInput(Vector2.zero, 0f);
+            SetInput(Vector2.zero, 0f, 0f);
         }
         
         HandleTilt();
@@ -137,10 +170,11 @@ public class DroneMovement : MonoBehaviour
     /// Metodo pubblico per iniettare l'input. Totalmente disaccoppiato dal sistema di input specifico.
     /// In futuro potrà essere chiamato sia da un VirtualJoystick che da una IA (NavMesh).
     /// </summary>
-    public void SetInput(Vector2 moveInput, float altitudeInput)
+    public void SetInput(Vector2 moveInput, float altitudeInput, float yawInput)
     {
         currentMoveInput = Vector2.ClampMagnitude(moveInput, 1f);
         currentAltitudeInput = Mathf.Clamp(altitudeInput, -1f, 1f);
+        currentYawInput = Mathf.Clamp(yawInput, -1f, 1f);
     }
 
     /// <summary>
@@ -179,23 +213,12 @@ public class DroneMovement : MonoBehaviour
         
         float finalAltitudeInput = currentAltitudeInput;
 
-        // 1. Blocco della spinta: se superiamo il limite e stiamo cercando di salire, forziamo l'input a 0
-        if (transform.position.y >= maxAltitude && finalAltitudeInput > 0f)
-        {
-            finalAltitudeInput = 0f;
-        }
-
+        // Tetto massimo rimosso: Esplorazione profonda e verticale libera!
         Vector3 verticalForce = Vector3.up * finalAltitudeInput * ascendForce;
 
         // Usiamo AddForce. Questo è vitale perché se un domani uno script "WindReceiver" 
         // applica un'altra AddForce, il motore fisico di Unity le sommerà in automatico e realisticamente.
         rb.AddForce(directionalForce + verticalForce, ForceMode.Force);
-
-        // 2. Controllo di sicurezza per l'inerzia: azzeriamo la velocità Y (usando linearVelocity per Unity 6)
-        if (transform.position.y >= maxAltitude && rb.linearVelocity.y > 0f)
-        {
-            rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
-        }
     }
 
     private void HandleTilt()

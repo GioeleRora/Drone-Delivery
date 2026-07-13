@@ -7,16 +7,9 @@ public class RestartButtonHelper : MonoBehaviour
     /// </summary>
     public void ClickRestart()
     {
-        if (GameStateManager.Instance != null)
-        {
-            GameStateManager.Instance.RestartGame();
-        }
-        else
-        {
-            // Fallback nel caso in cui non sia presente il GameStateManager in scena
-            UnityEngine.SceneManagement.SceneManager.LoadScene(
-                UnityEngine.SceneManagement.SceneManager.GetActiveScene().name
-            );
-        }
+        Time.timeScale = 1f;
+        UnityEngine.SceneManagement.SceneManager.LoadScene(
+            UnityEngine.SceneManagement.SceneManager.GetActiveScene().name
+        );
     }
 }

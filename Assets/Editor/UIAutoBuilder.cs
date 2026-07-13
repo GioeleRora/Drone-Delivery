@@ -161,10 +161,8 @@ public class UIAutoBuilder : EditorWindow
         uiManagerSO.ApplyModifiedProperties();
 
         // ============================================
-        // B. Joystick (Basso Sinistra e Destra)
+        // B. Joystick rimossi per transizione a PC
         // ============================================
-        CreateJoystick("LeftJoystick", canvasGo.transform, new Vector2(0, 0), new Vector2(150, 150), knobSprite);
-        CreateJoystick("RightJoystick", canvasGo.transform, new Vector2(1, 0), new Vector2(-150, 150), knobSprite);
 
         // ============================================
         // C. Bussola a Nastro (Basso Centro)
@@ -252,36 +250,4 @@ public class UIAutoBuilder : EditorWindow
         Debug.Log("UI Mobile generata con Joystick e Bussola a Nastro!");
     }
 
-    private static void CreateJoystick(string name, Transform parent, Vector2 anchor, Vector2 position, Sprite knob)
-    {
-        GameObject bgGo = new GameObject(name);
-        bgGo.transform.SetParent(parent, false);
-        Image bgImg = bgGo.AddComponent<Image>();
-        bgImg.sprite = knob;
-        bgImg.color = new Color(0, 0, 0, 0.4f);
-        RectTransform bgRect = bgImg.rectTransform;
-        bgRect.anchorMin = anchor;
-        bgRect.anchorMax = anchor;
-        bgRect.pivot = new Vector2(0.5f, 0.5f);
-        bgRect.anchoredPosition = position;
-        bgRect.sizeDelta = new Vector2(200, 200);
-
-        GameObject handleGo = new GameObject("Handle");
-        handleGo.transform.SetParent(bgGo.transform, false);
-        Image handleImg = handleGo.AddComponent<Image>();
-        handleImg.sprite = knob;
-        handleImg.color = new Color(1, 1, 1, 0.8f);
-        RectTransform handleRect = handleImg.rectTransform;
-        handleRect.anchorMin = new Vector2(0.5f, 0.5f);
-        handleRect.anchorMax = new Vector2(0.5f, 0.5f);
-        handleRect.pivot = new Vector2(0.5f, 0.5f);
-        handleRect.anchoredPosition = Vector2.zero;
-        handleRect.sizeDelta = new Vector2(80, 80);
-
-        VirtualJoystick vj = bgGo.AddComponent<VirtualJoystick>();
-        SerializedObject vjSO = new SerializedObject(vj);
-        vjSO.FindProperty("background").objectReferenceValue = bgRect;
-        vjSO.FindProperty("handle").objectReferenceValue = handleRect;
-        vjSO.ApplyModifiedProperties();
-    }
 }

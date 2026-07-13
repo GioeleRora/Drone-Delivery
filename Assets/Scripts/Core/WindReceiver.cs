@@ -15,6 +15,9 @@ public class WindReceiver : MonoBehaviour
     [SerializeField] private Vector3 currentTotalWindForce;
     [SerializeField] private int activeWindAreasCount;
 
+    [Tooltip("Toggle wind physics without disabling the component.")]
+    [SerializeField] private bool windEnabled = false;
+
     private Rigidbody rb;
     private readonly List<WindArea> activeWindAreas = new List<WindArea>();
 
@@ -25,6 +28,9 @@ public class WindReceiver : MonoBehaviour
 
     private void FixedUpdate()
     {
+        // Disabilitato temporaneamente di default per evitare fastidi durante i test
+        if (!windEnabled) return;
+
         // 1. Calculate Global Wind Force
         currentGlobalWind = Vector3.zero;
         if (WindManager.Instance == null)

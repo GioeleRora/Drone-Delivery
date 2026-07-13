@@ -43,6 +43,16 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    private void ShowPanel(GameObject panel)
+    {
+        if (gameOverCrashPanel != null) gameOverCrashPanel.SetActive(false);
+        if (gameOverBatteryPanel != null) gameOverBatteryPanel.SetActive(false);
+        if (victoryPanel != null) victoryPanel.SetActive(false);
+
+        if (panel != null) panel.SetActive(true);
+        Time.timeScale = 0f;
+    }
+
     private GameObject CreatePanel(string name, string titleText, Color titleColor, string subtitleText)
     {
         // 1. Crea il GameObject principale del pannello
@@ -121,48 +131,20 @@ public class UIManager : MonoBehaviour
         if (gameOverBatteryPanel != null) gameOverBatteryPanel.SetActive(false);
         if (victoryPanel != null) victoryPanel.SetActive(false);
 
-        if (GameStateManager.Instance != null)
+        if (droneMovement != null)
         {
-            GameStateManager.Instance.OnGameStateChanged += HandleGameStateChanged;
-        }
-    }
-
-    private void OnDestroy()
-    {
-        if (GameStateManager.Instance != null)
-        {
-            GameStateManager.Instance.OnGameStateChanged -= HandleGameStateChanged;
-        }
-    }
-
-    private void HandleGameStateChanged(GameState state)
-    {
-        // Disattiva tutti i pannelli
-        if (gameOverCrashPanel != null) gameOverCrashPanel.SetActive(false);
-        if (gameOverBatteryPanel != null) gameOverBatteryPanel.SetActive(false);
-        if (victoryPanel != null) victoryPanel.SetActive(false);
-
-        // Attiva solo il pannello corrispondente
-        switch (state)
-        {
-            case GameState.GameOver_Crash:
-                if (gameOverCrashPanel != null) gameOverCrashPanel.SetActive(true);
-                break;
-            case GameState.GameOver_Battery:
-                if (gameOverBatteryPanel != null) gameOverBatteryPanel.SetActive(true);
-                break;
-            case GameState.Victory:
-                if (victoryPanel != null) victoryPanel.SetActive(true);
-                break;
+            DroneHealth health = droneMovement.GetComponent<DroneHealth>();
+            if (health != null) health.OnDroneDestroyed += () => ShowPanel(gameOverCrashPanel);
+            
+            BatterySystem battery = droneMovement.GetComponent<BatterySystem>();
+            if (battery != null) battery.OnBatteryDepleted += () => ShowPanel(gameOverBatteryPanel);
         }
     }
 
     public void OnRestartButtonClicked()
     {
-        if (GameStateManager.Instance != null)
-        {
-            GameStateManager.Instance.RestartGame();
-        }
+        Time.timeScale = 1f;
+        UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
     }
 
     private void Update()
