@@ -2,11 +2,20 @@ using UnityEngine;
 
 public static class CraterMath
 {
+    public enum TunnelType { Arch, Room }
+
     public struct TunnelData
     {
+        public TunnelType type;
         public Vector3 center;
         public Quaternion rotation;
         public Vector3 extents;
+        // Parametri organici
+        public float snakeAmplitude;
+        public float snakeFrequency;
+        public float noiseAmplitude;
+        public bool hasSharpCurves;
+        public bool dynamicPitchBend;
     }
 
     private static TunnelData[] tunnels;
@@ -15,28 +24,106 @@ public static class CraterMath
     {
         if (tunnels != null) return;
         
-        tunnels = new TunnelData[1];
+        tunnels = new TunnelData[5];
         
-        // Tunnel 1: Miniera 
-        // Orientato a metà tra Nord-Ovest (135°) e Nord (90°) = 112.5°
-        float angleDeg = 112.5f; 
-        float angleRad = angleDeg * Mathf.Deg2Rad;
+        float mainAngle = 112.5f; 
+        float mainRad = mainAngle * Mathf.Deg2Rad;
+        Vector3 mainDir = new Vector3(Mathf.Cos(mainRad), 0f, Mathf.Sin(mainRad));
         
-        // Il "secondo terrazzamento" dal fondo si trova a y = -125m.
-        // La parte piatta di questo terrazzamento va da circa R=175 a R=210.
-        // Da R=210 inizia il muro che sale al terzo terrazzamento.
-        // Facciamo iniziare il tunnel a R=205 (così poggia perfettamente sul piano) e lo facciamo 
-        // entrare nella montagna fino a R=325.
-        float centerR = 265f; 
+        // Quota ingresso (terrazzamento reale calcolato ad occhio)
+        float entranceY = -135f; 
+        // Quota stanza (più profonda per permettere la discesa)
+        float roomFloorY = -155f; 
         
-        // Pendenza in discesa: da y=-123 a y=-135 (dislivello di 12m su lunghezza 120m)
-        float pitchDeg = Mathf.Atan2(12f, 120f) * Mathf.Rad2Deg;
+        // --- 2. STANZA PRINCIPALE DELLA MINIERA ---
+        float roomCenterR = 425f;
+        Vector3 roomCenter = new Vector3(mainDir.x * roomCenterR, roomFloorY + 20f, mainDir.z * roomCenterR);
+        tunnels[1] = new TunnelData {
+            type = TunnelType.Room,
+            center = roomCenter,
+            rotation = Quaternion.Euler(0f, -mainAngle + 90f, 0f), 
+            extents = new Vector3(45f, 20f, 45f), // Raggio 45m
+            snakeAmplitude = 0f,
+            snakeFrequency = 0f,
+            noiseAmplitude = 8f 
+        };
 
+        // --- 1. TUNNEL PRINCIPALE (Ingresso) ---
+        float t1Length = 200f;
+        // La distanza dal pivot all'ingresso è t1Length - 5f = 195f.
+        // Vogliamo che su 195m il tunnel scenda (da entranceY a roomFloorY).
+        float t1Pitch = Mathf.Atan2(Mathf.Abs(entranceY - roomFloorY), 195f) * Mathf.Rad2Deg; 
+        Quaternion t1Rot = Quaternion.Euler(t1Pitch, -mainAngle + 90f, 0f);
+        Vector3 t1LocalZ = t1Rot * Vector3.forward;
+        // Punto di ancoraggio: al limite della stanza
+        Vector3 t1Pivot = new Vector3(roomCenter.x, roomFloorY + 13f, roomCenter.z) - mainDir * 40f;
         tunnels[0] = new TunnelData {
-            center = new Vector3(Mathf.Cos(angleRad) * centerR, -129f, Mathf.Sin(angleRad) * centerR),
-            // Rotazione Yaw: -angleDeg + 90 allinea l'asse Z locale con il raggio verso l'esterno
-            rotation = Quaternion.Euler(pitchDeg, -angleDeg + 90f, 0f), 
-            extents = new Vector3(18f, 13f, 60f) // Larghezza 36m, Altezza 26m, Lunghezza 120m
+            type = TunnelType.Arch,
+            center = t1Pivot - t1LocalZ * (t1Length / 2f - 5f),
+            rotation = t1Rot, 
+            extents = new Vector3(18f, 13f, t1Length / 2f), 
+            snakeAmplitude = 6f,
+            snakeFrequency = 0.05f,
+            noiseAmplitude = 2.5f,
+            hasSharpCurves = false,
+            dynamicPitchBend = false
+        };
+
+        // Funzione helper per calcolare il centro di un cunicolo in uscita dalla stanza
+        Vector3 GetBranchCenter(float yawAngle, float pitchAngle, float length, float extentsY) {
+            Quaternion rot = Quaternion.Euler(pitchAngle, -yawAngle + 90f, 0f);
+            Vector3 localZ = rot * Vector3.forward; 
+            Vector3 dir = new Vector3(Mathf.Cos(yawAngle * Mathf.Deg2Rad), 0f, Mathf.Sin(yawAngle * Mathf.Deg2Rad));
+            // Punto di ancoraggio al limite della stanza (raggio ~40m)
+            Vector3 pivot = new Vector3(roomCenter.x, roomFloorY + extentsY, roomCenter.z) + dir * 40f;
+            return pivot + localZ * (length / 2f - 5f);
+        }
+
+        // --- 3. CUNICOLO A (Sinistra) - Curve a gomito ---
+        float angleA = mainAngle + 40f; 
+        float pitchA = 7f; // Discesa
+        float lengthA = 200f;
+        tunnels[2] = new TunnelData {
+            type = TunnelType.Arch,
+            center = GetBranchCenter(angleA, pitchA, lengthA, 7f),
+            rotation = Quaternion.Euler(pitchA, -angleA + 90f, 0f), 
+            extents = new Vector3(6f, 7f, lengthA / 2f), 
+            snakeAmplitude = 0f, // Gestito dalle curve a gomito
+            snakeFrequency = 0f,
+            noiseAmplitude = 2.0f,
+            hasSharpCurves = true,
+            dynamicPitchBend = false
+        };
+
+        // --- 4. CUNICOLO B (Destra) ---
+        float angleB = mainAngle - 35f; 
+        float pitchB = -5f; // Salita
+        float lengthB = 250f;
+        tunnels[3] = new TunnelData {
+            type = TunnelType.Arch,
+            center = GetBranchCenter(angleB, pitchB, lengthB, 6f),
+            rotation = Quaternion.Euler(pitchB, -angleB + 90f, 0f), 
+            extents = new Vector3(5f, 6f, lengthB / 2f), 
+            snakeAmplitude = 12f, // Curve morbide
+            snakeFrequency = 0.04f,
+            noiseAmplitude = 2.5f,
+            hasSharpCurves = false,
+            dynamicPitchBend = false
+        };
+
+        // --- 5. CUNICOLO C (Dritto profondo) - Cambio pendenza ---
+        float pitchC = 12f; // Inizia con forte discesa
+        float lengthC = 300f;
+        tunnels[4] = new TunnelData {
+            type = TunnelType.Arch,
+            center = GetBranchCenter(mainAngle, pitchC, lengthC, 5f),
+            rotation = Quaternion.Euler(pitchC, -mainAngle + 90f, 0f), 
+            extents = new Vector3(4f, 5f, lengthC / 2f), 
+            snakeAmplitude = 5f,
+            snakeFrequency = 0.02f,
+            noiseAmplitude = 1.5f,
+            hasSharpCurves = false,
+            dynamicPitchBend = true // Piana improvvisamente a metà
         };
     }
 
@@ -52,40 +139,99 @@ public static class CraterMath
         return false;
     }
 
-    private static float GetArchDistance(Vector3 point, TunnelData tunnel)
+    private static float GetTunnelDistance(Vector3 point, TunnelData tunnel)
     {
         Vector3 p = Quaternion.Inverse(tunnel.rotation) * (point - tunnel.center);
+        
+        // --- DEFORMAZIONE ORGANICA (Snaking) ---
+        if (tunnel.snakeAmplitude > 0f) {
+            float turn = Mathf.PerlinNoise(p.z * tunnel.snakeFrequency, Mathf.Abs(tunnel.center.x) * 0.01f) * 2f - 1f;
+            p.x += turn * turn * turn * tunnel.snakeAmplitude;
+        }
+
+        // --- CURVE A GOMITO STRETTE ---
+        if (tunnel.hasSharpCurves) {
+            float length = tunnel.extents.z;
+            // Addolciamo leggermente i moltiplicatori per evitare che l'algoritmo Voxel 
+            // perdi la continuità della mesh a causa di una distorsione spaziale troppo violenta.
+            float shift1 = Mathf.Atan((p.z - (-length * 0.2f)) * 0.08f) * 15f; // Prima curva stretta
+            float shift2 = Mathf.Atan((p.z - (length * 0.4f)) * 0.1f) * -20f;  // Seconda curva a gomito
+            p.x += shift1 + shift2;
+        }
+
+        // --- CAMBIO DI PENDENZA DINAMICO ---
+        if (tunnel.dynamicPitchBend) {
+            // A metà del tunnel, pieghiamo la coordinata Y per far "spianare" la discesa
+            // Mathf.SmoothStep garantisce che il pavimento non abbia alcuno scalino durante la piegatura
+            float bendFactor = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(p.z / (tunnel.extents.z * 0.6f)));
+            float pitchUp = 12f * Mathf.Deg2Rad; // Annulliamo i 12 gradi di discesa iniziali
+            p.y -= Mathf.Sin(pitchUp) * p.z * bendFactor;
+        }
+
         float W = tunnel.extents.x;
         float H = tunnel.extents.y;
         float L = tunnel.extents.z;
         
-        // Calcoliamo il centro del semicerchio superiore in modo che la cima tocchi esattamente +H
-        float archCenterY = H - W; 
-        
-        float x = Mathf.Abs(p.x);
-        float dist2D;
-        
-        if (p.y > archCenterY) {
-            // Parte superiore: Semicerchio
-            dist2D = new Vector2(x, p.y - archCenterY).magnitude - W;
-        } else {
-            // Parte inferiore: Muri dritti e pavimento piatto
-            float dX = x - W;
-            float dY = -H - p.y; // Distanza dal pavimento
+        float finalDist;
+
+        if (tunnel.type == TunnelType.Room) {
+            // --- STANZA POLIGONALE IRREGOLARE ---
+            float angle = Mathf.Atan2(p.z, p.x);
+            // Costruiamo la base di un pentagono 
+            float pentagonBase = Mathf.Cos(Mathf.PI / 5f - (Mathf.Abs(angle) % (Mathf.PI * 2f / 5f))); 
+            float deformedW = W / pentagonBase;
             
-            if (dX > 0 && dY > 0) {
-                dist2D = new Vector2(dX, dY).magnitude; // Esterno all'angolo in basso
+            // Aggiungiamo rumore Perlin a bassa frequenza per curvare alcune pareti
+            float noise = Mathf.PerlinNoise(point.x * 0.04f, point.z * 0.04f) * 12f;
+            deformedW += noise;
+            
+            float domeDist = new Vector3(p.x, Mathf.Max(p.y, 0f), p.z).magnitude - deformedW;
+            float floorDist = -H - p.y;
+            // Il pavimento è SEMPRE piatto e non affetto dalla deformazione radiale!
+            finalDist = Mathf.Max(domeDist, floorDist);
+        } 
+        else {
+            // --- TUNNEL AD ARCO ---
+            float archCenterY = H - W; 
+            float x = Mathf.Abs(p.x);
+            float dist2D;
+            
+            if (p.y > archCenterY) {
+                dist2D = new Vector2(x, p.y - archCenterY).magnitude - W;
             } else {
-                dist2D = Mathf.Max(dX, dY); // Interno, o esterno lungo i lati
+                float dX = x - W;
+                float dY = -H - p.y; 
+                
+                if (dX > 0 && dY > 0) {
+                    dist2D = new Vector2(dX, dY).magnitude; 
+                } else {
+                    dist2D = Mathf.Max(dX, dY); 
+                }
+            }
+            
+            Vector2 d3D = new Vector2(dist2D, Mathf.Abs(p.z) - L);
+            float outsideDist = Vector2.Max(d3D, Vector2.zero).magnitude;
+            float insideDist = Mathf.Min(Mathf.Max(d3D.x, d3D.y), 0f);
+            finalDist = outsideDist + insideDist;
+        }
+
+        // --- RUMORE ROCCIOSO (Pareti grezze) ---
+        if (tunnel.noiseAmplitude > 0f) {
+            // Maschera del pavimento: il rumore non deve distruggere la strada!
+            // Inizia a zero sul pavimento (-H) e arriva al 100% a 3 metri di altezza
+            float floorMask = Mathf.Clamp01((p.y - (-H + 0.5f)) / 3.0f);
+            
+            if (floorMask > 0f) {
+                float nf = 0.12f; 
+                float noise = (Mathf.PerlinNoise(point.x * nf, point.z * nf) - 0.5f) 
+                            + (Mathf.PerlinNoise(point.y * nf, point.x * nf) - 0.5f);
+                
+                // Sottrarre dalla distanza equivale a scavare roccia in modo irregolare
+                finalDist -= noise * tunnel.noiseAmplitude * floorMask;
             }
         }
         
-        // Estrusione 3D lungo l'asse Z (Lunghezza del tunnel)
-        Vector2 d3D = new Vector2(dist2D, Mathf.Abs(p.z) - L);
-        float outsideDist = Vector2.Max(d3D, Vector2.zero).magnitude;
-        float insideDist = Mathf.Min(Mathf.Max(d3D.x, d3D.y), 0f);
-        
-        return outsideDist + insideDist;
+        return finalDist;
     }
 
     // Restituisce l'altezza della superficie del cratere in un dato punto (x, z)
@@ -154,6 +300,8 @@ public static class CraterMath
         else
         {
             posY = 150f; // Residenziale
+            posY += Mathf.PerlinNoise(nx * 3f, nz * 3f) * 15f;
+            posY += Mathf.PerlinNoise(nx * 10f, nz * 10f) * 5f;
         }
 
         float surfaceNoiseAmp = 0f;
@@ -268,17 +416,14 @@ public static class CraterMath
             }
         }
 
-        // --- SOTTRAZIONE TUNNEL (Operazione Booleana) ---
+        // --- SOTTRAZIONE TUNNEL E STANZE (Operazione Booleana) ---
         // Sottraiamo i tunnel dalla roccia per scavare gallerie artificiali
         if (tunnels != null)
         {
             Vector3 point = new Vector3(x, y, z);
             for (int i = 0; i < tunnels.Length; i++)
             {
-                float tunnelDist = GetArchDistance(point, tunnels[i]);
-                // La distanza è < 0 DENTRO il tunnel.
-                // Facendo il Min, forziamo la densità ad essere negativa all'interno del tunnel, creando "Aria".
-                // Questo crea pareti lisce e perfettamente dritte.
+                float tunnelDist = GetTunnelDistance(point, tunnels[i]);
                 density = Mathf.Min(density, tunnelDist);
             }
         }

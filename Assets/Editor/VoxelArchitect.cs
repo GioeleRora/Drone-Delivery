@@ -20,15 +20,15 @@ public class VoxelArchitect : EditorWindow
         float spacing = 5f; // 5 metri per voxel. Chunk fisico: 155 metri.
         float chunkPhysicalSize = (chunkSize - 1) * spacing; 
 
-        // Raggio 600m -> Diametro 1200m
-        int chunksX = Mathf.CeilToInt(1200f / chunkPhysicalSize);
-        int chunksZ = Mathf.CeilToInt(1200f / chunkPhysicalSize);
+        // Raggio 800m -> Diametro 1600m (Allargato per permettere tunnel più lunghi!)
+        int chunksX = Mathf.CeilToInt(1600f / chunkPhysicalSize);
+        int chunksZ = Mathf.CeilToInt(1600f / chunkPhysicalSize);
         // Altezza da -450 a 550 (Totale 1000m) per dare margine di sicurezza sotto il pavimento
         int chunksY = Mathf.CeilToInt(1000f / chunkPhysicalSize);
 
-        float startX = -600f;
+        float startX = -800f;
         float startY = -450f;
-        float startZ = -600f;
+        float startZ = -800f;
 
         int chunksGenerated = 0;
 

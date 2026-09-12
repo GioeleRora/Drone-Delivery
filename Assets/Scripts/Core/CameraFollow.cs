@@ -22,28 +22,33 @@ public class CameraFollow : MonoBehaviour
         if (target != null)
         {
             // --- GESTIONE FREELOOK ---
-            bool isFreelook = Input.GetKey(KeyCode.LeftAlt);
+            bool isFreelook = false;
             float lookX = 0f;
             float lookY = 0f;
 
-            if (Input.GetKey(KeyCode.RightArrow)) lookX = 1f;
-            if (Input.GetKey(KeyCode.LeftArrow)) lookX = -1f;
-            if (Input.GetKey(KeyCode.UpArrow)) lookY = 1f;
-            if (Input.GetKey(KeyCode.DownArrow)) lookY = -1f;
+            Gamepad gamepad = UnityEngine.InputSystem.Gamepad.current;
+            UnityEngine.InputSystem.Keyboard kb = UnityEngine.InputSystem.Keyboard.current;
 
-#if ENABLE_INPUT_SYSTEM
-            Gamepad gamepad = Gamepad.current;
-            if (gamepad != null)
+            if (gamepad != null && gamepad.leftShoulder.isPressed) isFreelook = true;
+            if (kb != null && kb.leftAltKey.isPressed) isFreelook = true;
+
+            if (isFreelook)
             {
-                if (gamepad.leftShoulder.isPressed) isFreelook = true;
-                if (isFreelook)
+                if (kb != null)
+                {
+                    if (kb.rightArrowKey.isPressed) lookX = 1f;
+                    if (kb.leftArrowKey.isPressed) lookX = -1f;
+                    if (kb.upArrowKey.isPressed) lookY = 1f;
+                    if (kb.downArrowKey.isPressed) lookY = -1f;
+                }
+
+                if (gamepad != null)
                 {
                     Vector2 rightStick = gamepad.rightStick.ReadValue();
                     if (Mathf.Abs(rightStick.x) > 0.1f) lookX = rightStick.x;
                     if (Mathf.Abs(rightStick.y) > 0.1f) lookY = rightStick.y;
                 }
             }
-#endif
 
             if (isFreelook)
             {

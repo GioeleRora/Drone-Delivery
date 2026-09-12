@@ -23,9 +23,6 @@ public class UIManager : MonoBehaviour
     [Tooltip("Pannello mostrato in caso di batteria scarica")]
     [SerializeField] private GameObject gameOverBatteryPanel;
 
-    [Tooltip("Pannello mostrato in caso di vittoria (quota consegne raggiunta)")]
-    [SerializeField] private GameObject victoryPanel;
-
     private void Awake()
     {
         // Se i pannelli non sono assegnati nell'Inspector, li generiamo automaticamente a runtime
@@ -37,17 +34,12 @@ public class UIManager : MonoBehaviour
         {
             gameOverBatteryPanel = CreatePanel("GameOverBatteryPanel", "BATTERIA ESAURITA!", Color.yellow, "I motori si sono spenti a mezz'aria.");
         }
-        if (victoryPanel == null)
-        {
-            victoryPanel = CreatePanel("VictoryPanel", "CONSEGNE COMPLETATE!", Color.green, "Tutti i pacchi sono stati consegnati con successo.");
-        }
     }
 
     private void ShowPanel(GameObject panel)
     {
         if (gameOverCrashPanel != null) gameOverCrashPanel.SetActive(false);
         if (gameOverBatteryPanel != null) gameOverBatteryPanel.SetActive(false);
-        if (victoryPanel != null) victoryPanel.SetActive(false);
 
         if (panel != null) panel.SetActive(true);
         Time.timeScale = 0f;
@@ -129,7 +121,6 @@ public class UIManager : MonoBehaviour
         // Disattivazione iniziale dei pannelli di gioco finito
         if (gameOverCrashPanel != null) gameOverCrashPanel.SetActive(false);
         if (gameOverBatteryPanel != null) gameOverBatteryPanel.SetActive(false);
-        if (victoryPanel != null) victoryPanel.SetActive(false);
 
         if (droneMovement != null)
         {
@@ -167,14 +158,6 @@ public class UIManager : MonoBehaviour
                 batteryFill.color = Color.Lerp(Color.red, Color.green, fill);
                 batteryPercentage.text = Mathf.RoundToInt(fill * 100) + "%";
             }
-        }
-    }
-
-    public void OnToggleMotorsClicked()
-    {
-        if (droneMovement != null)
-        {
-            droneMovement.ToggleMotors();
         }
     }
 }

@@ -29,7 +29,7 @@ public class DroneMovement : MonoBehaviour
     private float currentAltitudeInput;
     private float currentYawInput;
     
-    public bool AreMotorsOn { get; private set; } = false;
+    public bool AreMotorsOn { get; private set; } = true;
     public bool IsGrounded { get; private set; }
 
     private void Awake()
@@ -97,33 +97,34 @@ public class DroneMovement : MonoBehaviour
     {
         if (AreMotorsOn)
         {
-            // Controllo Freelook
-            bool isFreelook = Input.GetKey(KeyCode.LeftAlt);
-#if ENABLE_INPUT_SYSTEM
-            Gamepad gamepad = Gamepad.current;
-            if (gamepad != null && gamepad.leftShoulder.isPressed) isFreelook = true;
-#endif
-
-            // PC Controls - Mode 2 Drone Standard
             float pitchInput = 0f;
             float rollInput = 0f;
-            
-            // Disabilitiamo il beccheggio e rollio se stiamo guardando in giro
-            if (!isFreelook)
-            {
-                pitchInput = Input.GetKey(KeyCode.UpArrow) ? 1f : (Input.GetKey(KeyCode.DownArrow) ? -1f : 0f);
-                rollInput = Input.GetKey(KeyCode.RightArrow) ? 1f : (Input.GetKey(KeyCode.LeftArrow) ? -1f : 0f);
-            }
-            
-            float throttleInput = Input.GetKey(KeyCode.W) ? 1f : (Input.GetKey(KeyCode.S) ? -1f : 0f);
-            float yawInput = Input.GetKey(KeyCode.D) ? 1f : (Input.GetKey(KeyCode.A) ? -1f : 0f);
+            float throttleInput = 0f;
+            float yawInput = 0f;
+            bool isFreelook = false;
 
-#if ENABLE_INPUT_SYSTEM
+            Gamepad gamepad = Gamepad.current;
+            Keyboard kb = Keyboard.current;
+
+            // 1. Lettura Freelook
+            if (gamepad != null && gamepad.leftShoulder.isPressed) isFreelook = true;
+            if (kb != null && kb.leftAltKey.isPressed) isFreelook = true;
+
+            // 2. Lettura Tastiera (Fallback)
+            if (kb != null)
+            {
+                if (!isFreelook)
+                {
+                    pitchInput = kb.upArrowKey.isPressed ? 1f : (kb.downArrowKey.isPressed ? -1f : 0f);
+                    rollInput = kb.rightArrowKey.isPressed ? 1f : (kb.leftArrowKey.isPressed ? -1f : 0f);
+                }
+                throttleInput = kb.wKey.isPressed ? 1f : (kb.sKey.isPressed ? -1f : 0f);
+                yawInput = kb.dKey.isPressed ? 1f : (kb.aKey.isPressed ? -1f : 0f);
+            }
+
+            // 3. Lettura Gamepad (Mode 2 Standard - Sovrascrive tastiera se usato)
             if (gamepad != null)
             {
-                // Mode 2 Standard:
-                // Left Stick: Throttle (Y) / Yaw (X)
-                // Right Stick: Pitch (Y) / Roll (X) (Solo se Freelook non è attivo)
                 Vector2 leftStick = gamepad.leftStick.ReadValue();
                 Vector2 rightStick = gamepad.rightStick.ReadValue();
                 
@@ -136,7 +137,6 @@ public class DroneMovement : MonoBehaviour
                     if (Mathf.Abs(rightStick.x) > 0.1f) rollInput = rightStick.x;
                 }
             }
-#endif
 
             SetInput(new Vector2(rollInput, pitchInput), throttleInput, yawInput);
         }
@@ -148,23 +148,6 @@ public class DroneMovement : MonoBehaviour
         HandleTilt();
     }
 
-    public void ToggleMotors()
-    {
-        if (droneHealth != null && droneHealth.IsDead)
-        {
-            AreMotorsOn = false;
-            return;
-        }
-
-        if (batterySystem != null && batterySystem.IsDepleted)
-        {
-            AreMotorsOn = false;
-        }
-        else
-        {
-            AreMotorsOn = !AreMotorsOn;
-        }
-    }
 
     /// <summary>
     /// Metodo pubblico per iniettare l'input. Totalmente disaccoppiato dal sistema di input specifico.
